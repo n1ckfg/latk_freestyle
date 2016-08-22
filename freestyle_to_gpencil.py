@@ -151,7 +151,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     """Actually creates the GPencil structure from a collection of strokes"""
     mat = bpy.context.scene.camera.matrix_local.copy()
     for fstroke in strokes:
-        gpstroke = frame.strokes.new()
+        gpstroke = frame.strokes.new(getActiveColor().name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
         gpstroke.points.add(count=len(fstroke))
@@ -160,16 +160,52 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
             for svert, point in zip(fstroke, gpstroke.points):
                 # svert.attribute.color = (1, 0, 0) # confirms that this callback runs earlier than the shading
                 point.co = mat * svert.point_3d
+                point.select = True
+                point.strength = 1
                 point.pressure = pressure
         elif draw_mode == 'SCREEN':
             width, height = render_dimensions(bpy.context.scene)
             for svert, point in zip(fstroke, gpstroke.points):
                 x, y = svert.point
                 point.co = Vector((abs(x / width), abs(y / height), 0.0)) * 100
+                point.select = True
+                point.strength = 1
                 point.pressure = 1
         else:
             raise NotImplementedError()
 
+# ~ ~ ~ ~ ~ ~ ~
+
+def getActiveGp(_name="GPencil"):
+    try:
+        pencil = bpy.context.scene.grease_pencil
+    except:
+        pencil = None
+    try:
+        gp = bpy.data.grease_pencil[pencil.name]
+    except:
+        gp = bpy.data.grease_pencil.new(_name)
+        bpy.context.scene.grease_pencil = gp
+    print("Active GP block is: " + gp.name)
+    return gp
+
+def getActivePalette():
+    gp = getActiveGp()
+    palette = gp.palettes.active
+    if (palette == None):
+        palette = gp.palettes.new(gp.name + "_Palette", set_active = True)
+    if (len(palette.colors) < 1):
+        color = palette.colors.new()
+        color.color = (0,0,0)
+    print("Active palette is: " + gp.palettes.active.name)
+    return palette
+
+def getActiveColor():
+    palette = getActivePalette()
+    print("Active color is: " + "\"" + palette.colors.active.name + "\" " + str(palette.colors.active.color))
+    return palette.colors.active
+
+# ~ ~ ~ ~ ~ ~ ~
 
 def freestyle_to_fill(scene):
     default = dict(color=(0, 0, 0), alpha=1, fill_color=(0, 1, 0), fill_alpha=1)
