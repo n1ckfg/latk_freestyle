@@ -131,10 +131,12 @@ def create_gpencil_layer(scene, name, color, alpha, fill_color, fill_alpha):
         print("making new GPencil layer")
         layer = gp.layers.new(name=name, set_active=True)
         # set defaults
+        '''
         layer.fill_color = fill_color
         layer.fill_alpha = fill_alpha
         layer.alpha = alpha 
         layer.color = color
+        '''
     elif scene.freestyle_gpencil_export.use_overwrite:
         # empty the current strokes from the gp layer
         layer.clear()
