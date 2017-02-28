@@ -13,3 +13,4 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 cd $DIR
 
 cp $BUILD_TARGET "${HOME}/Library/Application Support/Blender/2.77/scripts/addons/"
+cp $BUILD_TARGET "${HOME}/Library/Application Support/Blender/2.78/scripts/addons/"

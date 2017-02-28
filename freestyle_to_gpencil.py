@@ -153,6 +153,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     """Actually creates the GPencil structure from a collection of strokes"""
     mat = bpy.context.scene.camera.matrix_local.copy()
     for fstroke in strokes:
+    	# *** fstroke contains coordinates of original vertices ***
         gpstroke = frame.strokes.new(getActiveColor().name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
@@ -176,7 +177,8 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         else:
             raise NotImplementedError()
 
-# ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 def getActiveGp(_name="GPencil"):
     try:
@@ -207,7 +209,52 @@ def getActiveColor():
     print("Active color is: " + "\"" + palette.colors.active.name + "\" " + str(palette.colors.active.color))
     return palette.colors.active
 
-# ~ ~ ~ ~ ~ ~ ~
+def getActiveLayer():
+    gp = getActiveGp()
+    layer = gp.layers.active
+    return layer
+
+def createPoint(_stroke, _index, _point, pressure=1, strength=1):
+    _stroke.points[_index].co = _point
+    _stroke.points[_index].select = True
+    _stroke.points[_index].pressure = pressure
+    _stroke.points[_index].strength = strength
+
+def createColor(_color):
+    frame = getActiveFrame()
+    palette = getActivePalette()
+    matchingColorIndex = -1
+    places = 7
+    for i in range(0, len(palette.colors)):
+        if (roundVal(_color[0], places) == roundVal(palette.colors[i].color.r, places) and roundVal(_color[1], places) == roundVal(palette.colors[i].color.g, places) and roundVal(_color[2], places) == roundVal(palette.colors[i].color.b, places)):
+            matchingColorIndex = i
+    #~
+    if (matchingColorIndex == -1):
+        color = palette.colors.new()
+        color.color = _color
+    else:
+        palette.colors.active = palette.colors[matchingColorIndex]
+        color = palette.colors[matchingColorIndex]
+    #~        
+    print("Active color is: " + "\"" + palette.colors.active.name + "\" " + str(palette.colors.active.color))
+    return color
+
+def compareTuple(t1, t2, numPlaces=5):
+    if (roundVal(t1[0], numPlaces) == roundVal(t2[0], numPlaces) and roundVal(t1[1], numPlaces) == roundVal(t2[1], numPlaces) and roundVal(t1[2], numPlaces) == roundVal(t2[2], numPlaces)):
+        return True
+    else:
+        return False
+
+def roundVal(a, b):
+    formatter = "{0:." + str(b) + "f}"
+    return formatter.format(a)
+
+def roundValInt(a):
+    formatter = "{0:." + str(0) + "f}"
+    return int(formatter.format(a))
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 def freestyle_to_fill(scene):
     default = dict(color=(0, 0, 0), alpha=1, fill_color=(0, 1, 0), fill_alpha=1)
