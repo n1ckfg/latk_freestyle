@@ -5,6 +5,7 @@ from freestyle.chainingiterators import ChainSilhouetteIterator, ChainPredicateI
 from freestyle.functions import *
 
 import bpy
+import bmesh
 from bpy_extras import view3d_utils
 import bpy_extras
 from mathutils import Vector, Matrix
@@ -153,22 +154,22 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     """Actually creates the GPencil structure from a collection of strokes"""
     mat = bpy.context.scene.camera.matrix_local.copy()
     for fstroke in strokes:
-    	# TODO get color from vertices
-    	# *** fstroke contains coordinates of original vertices ***
-    	'''
-	    mesh = obj.data
-	    #~
-	    if not mesh.vertex_colors:
-	        mesh.vertex_colors.new()
-	    #~
-	    color_layer = mesh.vertex_colors.active  
-	    #~
-	    i = 0
-	    for poly in mesh.polygons:
-	        for idx in poly.loop_indices:
-	            color_layer.data[i].color = color
-	            i += 1
-    	'''
+        # TODO get color from vertices
+        # *** fstroke contains coordinates of original vertices ***
+        '''
+        mesh = obj.data
+        #~
+        if not mesh.vertex_colors:
+            mesh.vertex_colors.new()
+        #~
+        color_layer = mesh.vertex_colors.active  
+        #~
+        i = 0
+        for poly in mesh.polygons:
+            for idx in poly.loop_indices:
+                color_layer.data[i].color = color
+                i += 1
+        '''
         gpstroke = frame.strokes.new(getActiveColor().name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
@@ -191,6 +192,82 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
                 point.pressure = 1
         else:
             raise NotImplementedError()
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# http://blender.stackexchange.com/questions/49341/how-to-get-the-uv-corresponding-to-a-vertex-via-the-python-api
+# https://blenderartists.org/forum/archive/index.php/t-195230.html
+# https://developer.blender.org/T28211
+# http://blenderscripting.blogspot.ca/2012/08/adjusting-image-pixels-walkthrough.html
+# https://www.blender.org/forum/viewtopic.php?t=25804
+
+def uv_from_vert_first(uv_layer, v):
+    for l in v.link_loops:
+        uv_data = l[uv_layer]
+        return uv_data.uv
+    return None
+
+
+def uv_from_vert_average(uv_layer, v):
+    uv_average = Vector((0.0, 0.0))
+    total = 0.0
+    for loop in v.link_loops:
+        uv_average += loop[uv_layer].uv
+        total += 1.0
+    #~
+    if total != 0.0:
+        return uv_average * (1.0 / total)
+    else:
+        return None
+
+# Example using the functions above
+def testUvs():
+    obj = bpy.context.edit_object
+    me = obj.data
+    bm = bmesh.from_edit_mesh(me)
+    #~
+    uv_layer = bm.loops.layers.uv.active
+    #~
+    for v in bm.verts:
+        uv_first = uv_from_vert_first(uv_layer, v)
+        uv_average = uv_from_vert_average(uv_layer, v)
+        print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
+        #~
+        pixel = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, 0.1, 0.1)
+        print("Pixel: " + str(pixel))
+
+def getUvImages():
+    obdata = bpy.context.object.data
+    uv_images = {}
+    #~
+    for uv_tex in obdata.uv_textures.active.data:
+        if (uv_tex.image and
+            uv_tex.image.name not in uv_images and
+            uv_tex.image.pixels):
+
+            uv_images[uv_tex.image.name] = (
+                uv_tex.image.size[0],
+                uv_tex.image.size[1],
+                uv_tex.image.pixels[:]
+                # Accessing pixels directly is far too slow.
+                # Copied to new array for massive performance-gain.
+            )
+    #~
+    return uv_images
+
+def getPixelFromImage(img, xPos, yPos):
+    imgWidth = img.size[0]
+    r = img.pixels[4 * (xPos + imgWidth * yPos) + 0]
+    g = img.pixels[4 * (xPos + imgWidth * yPos) + 1]
+    b = img.pixels[4 * (xPos + imgWidth * yPos) + 2]
+    a = img.pixels[4 * (xPos + imgWidth * yPos) + 3]
+    return [r, g, b, a]
+
+def getPixelFromUv(img, u, v):
+    pixel_x = int(u * img.size[0])
+    pixel_y = int(v * img.size[1])
+    return getPixelFromImage(img, pixel_x, pixel_y)
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
