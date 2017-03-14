@@ -153,23 +153,33 @@ def frame_from_frame_number(layer, current_frame):
 def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'):
     """Actually creates the GPencil structure from a collection of strokes"""
     mat = bpy.context.scene.camera.matrix_local.copy()
+    # ~ ~ ~ ~ ~ ~ ~ 
+    #obj = bpy.context.object #edit_object
+    '''
+    me = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(me) #from_edit_mesh(me)
+    #~
+    images = getUvImages()
+    #~
+    uv_layer = bm.loops.layers.uv.active
+    '''
+    #~
+    # ~ ~ ~ ~ ~ ~ ~ 
     for fstroke in strokes:
         # TODO get color from vertices
         # *** fstroke contains coordinates of original vertices ***
+        # ~ ~ ~ ~ ~ ~ ~ 
         '''
-        mesh = obj.data
-        #~
-        if not mesh.vertex_colors:
-            mesh.vertex_colors.new()
-        #~
-        color_layer = mesh.vertex_colors.active  
-        #~
-        i = 0
-        for poly in mesh.polygons:
-            for idx in poly.loop_indices:
-                color_layer.data[i].color = color
-                i += 1
+        for v in bm.verts:
+            uv_first = uv_from_vert_first(uv_layer, v)
+            uv_average = uv_from_vert_average(uv_layer, v)
+            #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
+            #~
+            pixel = getPixelFromUv(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
+            #print("Pixel: " + str(pixel))    
         '''
+        # ~ ~ ~ ~ ~ ~ ~ 
         gpstroke = frame.strokes.new(getActiveColor().name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
