@@ -159,6 +159,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     bm = bmesh.new()
     bm.from_mesh(me) #from_edit_mesh(me)
     #~
+    # TODO: see if you can get this to work and speed things up
     #images = getUvImages()
     #~
     uv_layer = bm.loops.layers.uv.active
@@ -167,20 +168,29 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     for fstroke in strokes:
         # TODO get color from vertices
         # *** fstroke contains coordinates of original vertices ***
-        # ~ ~ ~ ~ ~ ~ ~ 
-        pixel = [0,0,0,1]
+        # ~ ~ ~ ~ ~ ~ ~
+        firstVert = None
+        for i, svert in enumerate(fstroke):
+            if (i==0):
+                firstVert = mat * svert.point_3d
+        #~
+        pixel = (0,0,0)
         for v in bm.verts:
-        	#if (compareTuple((v[0], v[1], v[2]), (fstroke[0], fstroke[1], fstroke[2])) == True):
-	        if (compareTuple((0,0,0), (0,0,0)) == True):
-	            uv_first = uv_from_vert_first(uv_layer, v)
-	            #uv_average = uv_from_vert_average(uv_layer, v)
-	            #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
-	            #~
-	            pixel = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_first[0], uv_first[1])
-	            break
-	            #print("Pixel: " + str(pixel))    
+            if (compareTuple((0, 0, 0), (0, 0, 0)) == True):
+            #if (compareTuple((v.co[0], v.co[1], v.co[2]), (firstVert[0], firstVert[1], firstVert[2])) == True):
+                uv_first = uv_from_vert_first(uv_layer, v)
+                #uv_average = uv_from_vert_average(uv_layer, v)
+                #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
+                #~
+                pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_first[0], uv_first[1])
+                pixel = (pixelRaw[0], pixelRaw[1], pixelRaw[2])
+                break
+                #print("Pixel: " + str(pixel))    
         # ~ ~ ~ ~ ~ ~ ~ 
-        #createColor((pixel[0], pixel[1], pixel[2]))
+        try:
+            createColor(pixel)
+        except:
+            pass
         gpstroke = frame.strokes.new(getActiveColor().name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
@@ -352,7 +362,7 @@ def createPoint(_stroke, _index, _point, pressure=1, strength=1):
     _stroke.points[_index].strength = strength
 
 def createColor(_color):
-    frame = getActiveFrame()
+    #frame = getActiveFrame()
     palette = getActivePalette()
     matchingColorIndex = -1
     places = 7
