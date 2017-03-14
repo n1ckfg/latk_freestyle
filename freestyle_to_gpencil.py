@@ -154,32 +154,33 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     """Actually creates the GPencil structure from a collection of strokes"""
     mat = bpy.context.scene.camera.matrix_local.copy()
     # ~ ~ ~ ~ ~ ~ ~ 
-    #obj = bpy.context.object #edit_object
-    '''
+    obj = bpy.context.scene.objects.active #bpy.context.edit_object
     me = obj.data
     bm = bmesh.new()
     bm.from_mesh(me) #from_edit_mesh(me)
     #~
-    images = getUvImages()
+    #images = getUvImages()
     #~
     uv_layer = bm.loops.layers.uv.active
-    '''
     #~
     # ~ ~ ~ ~ ~ ~ ~ 
     for fstroke in strokes:
         # TODO get color from vertices
         # *** fstroke contains coordinates of original vertices ***
         # ~ ~ ~ ~ ~ ~ ~ 
-        '''
+        pixel = [0,0,0,1]
         for v in bm.verts:
-            uv_first = uv_from_vert_first(uv_layer, v)
-            uv_average = uv_from_vert_average(uv_layer, v)
-            #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
-            #~
-            pixel = getPixelFromUv(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
-            #print("Pixel: " + str(pixel))    
-        '''
+        	#if (compareTuple((v[0], v[1], v[2]), (fstroke[0], fstroke[1], fstroke[2])) == True):
+	        if (compareTuple((0,0,0), (0,0,0)) == True):
+	            uv_first = uv_from_vert_first(uv_layer, v)
+	            #uv_average = uv_from_vert_average(uv_layer, v)
+	            #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
+	            #~
+	            pixel = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_first[0], uv_first[1])
+	            break
+	            #print("Pixel: " + str(pixel))    
         # ~ ~ ~ ~ ~ ~ ~ 
+        #createColor((pixel[0], pixel[1], pixel[2]))
         gpstroke = frame.strokes.new(getActiveColor().name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
@@ -234,7 +235,7 @@ def uv_from_vert_average(uv_layer, v):
 
 # Example using the functions above
 def testUvs():
-    obj = bpy.context.object #edit_object
+    obj = bpy.context.scene.objects.active #edit_object
     me = obj.data
     bm = bmesh.new()
     bm.from_mesh(me) #from_edit_mesh(me)
@@ -248,11 +249,11 @@ def testUvs():
         uv_average = uv_from_vert_average(uv_layer, v)
         print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
         #~
-        pixel = getPixelFromUv(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
+        pixel = getPixelFromUvArray(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
         print("Pixel: " + str(pixel))
 
 def getUvImages():
-    obj = bpy.context.object
+    obj = bpy.context.scene.objects.active
     uv_images = {}
     #~
     #for uv_tex in obdata.uv_textures.active.data:
@@ -276,7 +277,23 @@ def getUvImages():
     return uv_images
 
 def getPixelFromImage(img, xPos, yPos):
-    imgWidth = img[0] #img.size[0]
+    imgWidth = int(img.size[0])
+    r = img.pixels[4 * (xPos + imgWidth * yPos) + 0]
+    g = img.pixels[4 * (xPos + imgWidth * yPos) + 1]
+    b = img.pixels[4 * (xPos + imgWidth * yPos) + 2]
+    a = img.pixels[4 * (xPos + imgWidth * yPos) + 3]
+    return [r, g, b, a]
+
+def getPixelFromUv(img, u, v):
+    imgWidth = int(img.size[0])
+    imgHeight = int(img.size[1])
+    pixel_x = int(u * imgWidth)
+    pixel_y = int(v * imgHeight)
+    return getPixelFromImage(img, pixel_x, pixel_y)
+
+# *** these methods are much faster but don't work in all contexts
+def getPixelFromImageArray(img, xPos, yPos):
+    imgWidth = int(img[0]) #img.size[0]
     #r = img.pixels[4 * (xPos + imgWidth * yPos) + 0]
     r = img[2][4 * (xPos + imgWidth * yPos) + 0]
     g = img[2][4 * (xPos + imgWidth * yPos) + 1]
@@ -284,9 +301,9 @@ def getPixelFromImage(img, xPos, yPos):
     a = img[2][4 * (xPos + imgWidth * yPos) + 3]
     return [r, g, b, a]
 
-def getPixelFromUv(img, u, v):
-    imgWidth = img[0] #img.size[0]
-    imgHeight = img[1] #img.size[1]
+def getPixelFromUvArray(img, u, v):
+    imgWidth = int(img[0]) #img.size[0]
+    imgHeight = int(img[1]) #img.size[1]
     pixel_x = int(u * imgWidth)
     pixel_y = int(v * imgHeight)
     return getPixelFromImage(img, pixel_x, pixel_y)
