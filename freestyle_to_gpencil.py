@@ -8,6 +8,8 @@ import bpy
 import bmesh
 from bpy_extras import view3d_utils
 import bpy_extras
+from math import sqrt
+import random
 from mathutils import Vector, Matrix
 
 bl_info = {
@@ -172,21 +174,27 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         sampleVertRaw = (0,0,0)
         sampleVert = (0,0,0)
         #~
+        '''
         fstrokeCounter = 0
         for svert in fstroke:
-            fstrokeCounter+=1
+            fstrokeCounter += 1
         for i, svert in enumerate(fstroke):
             if (i == int(fstrokeCounter/2)):
+            #if (i == fstrokeCounter-1):
                 sampleVertRaw = mat * svert.point_3d
                 break
+        '''
+        for svert in fstroke:
+            sampleVertRaw = mat * svert.point_3d
+            break
         sampleVert = (sampleVertRaw[0], sampleVertRaw[1], sampleVertRaw[2])
         #~
         pixel = (1,0,1)
         lastPixel = getActiveColor().color
         for v in bm.verts:
-            #if (compareTuple(v.co, sampleVert, numPlaces=3) == True):
-            if (hitDetect3D(v.co, sampleVert, hitbox=0.5) == True):
-            #if (getDistance(v.co, sampleVert) <= 1.0):
+            #if (compareTuple(obj.matrix_world * v.co, obj.matrix_world * v.co, numPlaces=1) == True):
+            if (hitDetect3D(obj.matrix_world * v.co, sampleVert, hitbox=0.2) == True):
+            #if (getDistance(obj.matrix_world * v.co, sampleVert) <= 0.5):
                 uv_first = uv_from_vert_first(uv_layer, v)
                 #uv_average = uv_from_vert_average(uv_layer, v)
                 #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
@@ -199,10 +207,10 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
             else:
                 pixel = lastPixel   
         # ~ ~ ~ ~ ~ ~ ~ 
-        try:
-            createColor(pixel)
-        except:
-            pass
+        #try:
+        createColor(pixel)
+        #except:
+            #pass
         gpstroke = frame.strokes.new(getActiveColor().name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
@@ -235,6 +243,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
 # http://blenderscripting.blogspot.ca/2012/08/adjusting-image-pixels-walkthrough.html
 # https://www.blender.org/forum/viewtopic.php?t=25804
 # https://docs.blender.org/api/blender_python_api_2_63_2/bmesh.html
+# http://blender.stackexchange.com/questions/1311/how-can-i-get-vertex-positions-from-a-mesh
 
 def uv_from_vert_first(uv_layer, v):
     for l in v.link_loops:
