@@ -169,24 +169,24 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         # TODO get color from vertices
         # *** fstroke contains coordinates of original vertices ***
         # ~ ~ ~ ~ ~ ~ ~
-        firstVertRaw = (0,0,0)
-        firstVert = (0,0,0)
-        #lastVertRaw = (0,0,0)
-        #lastVert = (0,0,0)
+        sampleVertRaw = (0,0,0)
+        sampleVert = (0,0,0)
         #~
+        fstrokeCounter = 0
         for svert in fstroke:
-            firstVertRaw = mat * svert.point_3d
-            break
-        #for svert in fstroke:
-            #lastVertRaw = mat * svert.point_3d
-        firstVert = (firstVertRaw[0], firstVertRaw[1], firstVertRaw[2])
-        #lastVert = (lastVertRaw[0], lastVertRaw[1], lastVertRaw[2])
+            fstrokeCounter+=1
+        for i, svert in enumerate(fstroke):
+            if (i == int(fstrokeCounter/2)):
+                sampleVertRaw = mat * svert.point_3d
+                break
+        sampleVert = (sampleVertRaw[0], sampleVertRaw[1], sampleVertRaw[2])
         #~
         pixel = (1,0,1)
         lastPixel = getActiveColor().color
         for v in bm.verts:
-            #if (compareTuple(v.co, firstVert, numPlaces=0) == True):
-            if (hitDetect3D(v.co, firstVert, hitbox=0.5	) == True):
+            #if (compareTuple(v.co, sampleVert, numPlaces=3) == True):
+            if (hitDetect3D(v.co, sampleVert, hitbox=0.5) == True):
+            #if (getDistance(v.co, sampleVert) <= 1.0):
                 uv_first = uv_from_vert_first(uv_layer, v)
                 #uv_average = uv_from_vert_average(uv_layer, v)
                 #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
@@ -343,6 +343,9 @@ def hitDetect3D(p1, p2, hitbox=0.01):
         return True
     else:
         return False
+
+def getDistance(v1, v2):
+    return sqrt((v1[0] - v2[0])**2 + (v1[1] - v2[1])**2 + (v1[2] - v2[2])**2)
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
