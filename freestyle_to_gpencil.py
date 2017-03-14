@@ -201,6 +201,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
 # https://developer.blender.org/T28211
 # http://blenderscripting.blogspot.ca/2012/08/adjusting-image-pixels-walkthrough.html
 # https://www.blender.org/forum/viewtopic.php?t=25804
+# https://docs.blender.org/api/blender_python_api_2_63_2/bmesh.html
 
 def uv_from_vert_first(uv_layer, v):
     for l in v.link_loops:
@@ -223,9 +224,12 @@ def uv_from_vert_average(uv_layer, v):
 
 # Example using the functions above
 def testUvs():
-    obj = bpy.context.edit_object
+    obj = bpy.context.object #edit_object
     me = obj.data
-    bm = bmesh.from_edit_mesh(me)
+    bm = bmesh.new()
+    bm.from_mesh(me) #from_edit_mesh(me)
+    #~
+    images = getUvImages()
     #~
     uv_layer = bm.loops.layers.uv.active
     #~
@@ -234,39 +238,47 @@ def testUvs():
         uv_average = uv_from_vert_average(uv_layer, v)
         print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
         #~
-        pixel = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, 0.1, 0.1)
+        pixel = getPixelFromUv(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
         print("Pixel: " + str(pixel))
 
 def getUvImages():
-    obdata = bpy.context.object.data
+    obj = bpy.context.object
     uv_images = {}
     #~
-    for uv_tex in obdata.uv_textures.active.data:
-        if (uv_tex.image and
-            uv_tex.image.name not in uv_images and
-            uv_tex.image.pixels):
+    #for uv_tex in obdata.uv_textures.active.data:
+    for tex in obj.active_material.texture_slots:
+        try:
+            uv_tex = tex.texture
+            if (uv_tex.image and
+                uv_tex.image.name not in uv_images and
+                uv_tex.image.pixels):
 
-            uv_images[uv_tex.image.name] = (
-                uv_tex.image.size[0],
-                uv_tex.image.size[1],
-                uv_tex.image.pixels[:]
-                # Accessing pixels directly is far too slow.
-                # Copied to new array for massive performance-gain.
-            )
+                uv_images[uv_tex.image.name] = (
+                    uv_tex.image.size[0],
+                    uv_tex.image.size[1],
+                    uv_tex.image.pixels[:]
+                    # Accessing pixels directly is far too slow.
+                    # Copied to new array for massive performance-gain.
+                )
+        except:
+            pass
     #~
     return uv_images
 
 def getPixelFromImage(img, xPos, yPos):
-    imgWidth = img.size[0]
-    r = img.pixels[4 * (xPos + imgWidth * yPos) + 0]
-    g = img.pixels[4 * (xPos + imgWidth * yPos) + 1]
-    b = img.pixels[4 * (xPos + imgWidth * yPos) + 2]
-    a = img.pixels[4 * (xPos + imgWidth * yPos) + 3]
+    imgWidth = img[0] #img.size[0]
+    #r = img.pixels[4 * (xPos + imgWidth * yPos) + 0]
+    r = img[2][4 * (xPos + imgWidth * yPos) + 0]
+    g = img[2][4 * (xPos + imgWidth * yPos) + 1]
+    b = img[2][4 * (xPos + imgWidth * yPos) + 2]
+    a = img[2][4 * (xPos + imgWidth * yPos) + 3]
     return [r, g, b, a]
 
 def getPixelFromUv(img, u, v):
-    pixel_x = int(u * img.size[0])
-    pixel_y = int(v * img.size[1])
+    imgWidth = img[0] #img.size[0]
+    imgHeight = img[1] #img.size[1]
+    pixel_x = int(u * imgWidth)
+    pixel_y = int(v * imgHeight)
     return getPixelFromImage(img, pixel_x, pixel_y)
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
