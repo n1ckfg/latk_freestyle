@@ -81,8 +81,8 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
             default=0.2,
             )
     numColPlaces = IntProperty(
-        name="Color places",
-        description="How many decimal places colors are rounded to",
+        name="Color Places",
+        description="How many decimal places used to find matching colors",
         default=5,
         )
 
@@ -113,9 +113,9 @@ class SVGExporterPanel(bpy.types.Panel):
         #row.prop(svg, "split_at_invisible")
         # row.prop(gp, "use_fill")
         row.prop(gp, "use_overwrite")
-        row.prop(gp, "vertexHitbox")
+        #row.prop(gp, "vertexHitbox")
 
-        row = layout.row()
+        #row = layout.row()
         row.prop(gp, "numColPlaces")
 
 
@@ -188,7 +188,6 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         sampleVertRaw = (0,0,0)
         sampleVert = (0,0,0)
         #~
-        '''
         fstrokeCounter = 0
         for svert in fstroke:
             fstrokeCounter += 1
@@ -201,6 +200,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         for svert in fstroke:
             sampleVertRaw = mat * svert.point_3d
             break
+        '''
         sampleVert = (sampleVertRaw[0], sampleVertRaw[1], sampleVertRaw[2])
         #~
         pixel = (1,0,1)
@@ -209,22 +209,32 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         # possibly sort original verts by distance?
         # http://stackoverflow.com/questions/6618515/sorting-list-based-on-values-from-another-list
         # X.sort(key=dict(zip(X, Y)).get)
+        distances = []
+        sortedVerts = bm.verts
         for v in bm.verts:
+            distances.append(getDistance(obj.matrix_world * v.co, sampleVert))
+        sortedVerts.sort(key=dict(zip(sortedVerts, distances)).get)
+        targetVert = None
+        for v in sortedVerts:
+            targetVert = v
+            break
+        #~
             #if (compareTuple(obj.matrix_world * v.co, obj.matrix_world * v.co, numPlaces=1) == True):
-            if (hitDetect3D(obj.matrix_world * v.co, sampleVert, hitbox=bpy.context.scene.freestyle_gpencil_export.vertexHitbox) == True):
+            #if (hitDetect3D(obj.matrix_world * v.co, sampleVert, hitbox=bpy.context.scene.freestyle_gpencil_export.vertexHitbox) == True):
             #if (getDistance(obj.matrix_world * v.co, sampleVert) <= 0.5):
-                uv_first = uv_from_vert_first(uv_layer, v)
-                #uv_average = uv_from_vert_average(uv_layer, v)
-                #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
-                #~
-                pixelRaw = getPixelFromUvArray(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
-                #pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_first[0], uv_first[1])
-                #pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_average[0], uv_average[1])
-                pixel = (pixelRaw[0], pixelRaw[1], pixelRaw[2])
-                break
-                #print("Pixel: " + str(pixel))    
-            else:
-                pixel = lastPixel   
+        try:
+            uv_first = uv_from_vert_first(uv_layer, targetVert)
+            #uv_average = uv_from_vert_average(uv_layer, v)
+            #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
+            #~
+            pixelRaw = getPixelFromUvArray(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
+            #pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_first[0], uv_first[1])
+            #pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_average[0], uv_average[1])
+            pixel = (pixelRaw[0], pixelRaw[1], pixelRaw[2])
+            #break
+            #print("Pixel: " + str(pixel))    
+        except:
+            pixel = lastPixel   
         # ~ ~ ~ ~ ~ ~ ~ 
         #try:
         createColor(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces)
