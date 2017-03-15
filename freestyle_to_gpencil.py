@@ -176,14 +176,13 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     bm = bmesh.new()
     bm.from_mesh(me) #from_edit_mesh(me)
     #~
-    # TODO: see if you can get this to work and speed things up
+    # this speeds things up considerably
     images = getUvImages()
     #~
     uv_layer = bm.loops.layers.uv.active
     #~
     # ~ ~ ~ ~ ~ ~ ~ 
     for fstroke in strokes:
-        # TODO get color from vertices
         # *** fstroke contains coordinates of original vertices ***
         # ~ ~ ~ ~ ~ ~ ~
         sampleVertRaw = (0,0,0)
@@ -206,6 +205,10 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         #~
         pixel = (1,0,1)
         lastPixel = getActiveColor().color
+        # TODO better hit detection method needed
+        # possibly sort original verts by distance?
+        # http://stackoverflow.com/questions/6618515/sorting-list-based-on-values-from-another-list
+        # X.sort(key=dict(zip(X, Y)).get)
         for v in bm.verts:
             #if (compareTuple(obj.matrix_world * v.co, obj.matrix_world * v.co, numPlaces=1) == True):
             if (hitDetect3D(obj.matrix_world * v.co, sampleVert, hitbox=bpy.context.scene.freestyle_gpencil_export.vertexHitbox) == True):
