@@ -177,7 +177,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     bm.from_mesh(me) #from_edit_mesh(me)
     #~
     # TODO: see if you can get this to work and speed things up
-    #images = getUvImages()
+    images = getUvImages()
     #~
     uv_layer = bm.loops.layers.uv.active
     #~
@@ -214,7 +214,8 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
                 #uv_average = uv_from_vert_average(uv_layer, v)
                 #print("Vertex: %r, uv_first=%r, uv_average=%r" % (v, uv_first, uv_average))
                 #~
-                pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_first[0], uv_first[1])
+                pixelRaw = getPixelFromUvArray(images[obj.active_material.texture_slots[0].texture.image.name], uv_first[0], uv_first[1])
+                #pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_first[0], uv_first[1])
                 #pixelRaw = getPixelFromUv(obj.active_material.texture_slots[0].texture.image, uv_average[0], uv_average[1])
                 pixel = (pixelRaw[0], pixelRaw[1], pixelRaw[2])
                 break
@@ -360,7 +361,7 @@ def getPixelFromUvArray(img, u, v):
     imgHeight = int(img[1]) #img.size[1]
     pixel_x = int(u * imgWidth)
     pixel_y = int(v * imgHeight)
-    return getPixelFromImage(img, pixel_x, pixel_y)
+    return getPixelFromImageArray(img, pixel_x, pixel_y)
 
 def hitDetect3D(p1, p2, hitbox=0.01):
     if (p1[0] + hitbox >= p2[0] - hitbox and p1[0] - hitbox <= p2[0] + hitbox and p1[1] + hitbox >= p2[1] - hitbox and p1[1] - hitbox <= p2[1] + hitbox and p1[2] + hitbox >= p2[2] - hitbox and p1[2] - hitbox <= p2[2] + hitbox):
