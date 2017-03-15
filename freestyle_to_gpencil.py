@@ -28,6 +28,7 @@ from bpy.props import (
         BoolProperty,
         EnumProperty,
         FloatProperty,
+        IntProperty,
         PointerProperty,
         )
 import parameter_editor
@@ -79,6 +80,11 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
             description="How close a GP stroke needs to be to a vertex",
             default=0.2,
             )
+    numColPlaces = IntProperty(
+        name="Color places",
+        description="How many decimal places colors are rounded to",
+        default=5,
+        )
 
 class SVGExporterPanel(bpy.types.Panel):
     """Creates a Panel in the render context of the properties editor"""
@@ -108,6 +114,9 @@ class SVGExporterPanel(bpy.types.Panel):
         # row.prop(gp, "use_fill")
         row.prop(gp, "use_overwrite")
         row.prop(gp, "vertexHitbox")
+
+        row = layout.row()
+        row.prop(gp, "numColPlaces")
 
 
 
@@ -214,7 +223,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
                 pixel = lastPixel   
         # ~ ~ ~ ~ ~ ~ ~ 
         #try:
-        createColor(pixel)
+        createColor(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces)
         #except:
             #pass
         gpstroke = frame.strokes.new(getActiveColor().name)
@@ -405,11 +414,11 @@ def createPoint(_stroke, _index, _point, pressure=1, strength=1):
     _stroke.points[_index].pressure = pressure
     _stroke.points[_index].strength = strength
 
-def createColor(_color):
+def createColor(_color, numPlaces=7):
     #frame = getActiveFrame()
     palette = getActivePalette()
     matchingColorIndex = -1
-    places = 7
+    places = numPlaces
     for i in range(0, len(palette.colors)):
         if (roundVal(_color[0], places) == roundVal(palette.colors[i].color.r, places) and roundVal(_color[1], places) == roundVal(palette.colors[i].color.g, places) and roundVal(_color[2], places) == roundVal(palette.colors[i].color.b, places)):
             matchingColorIndex = i
