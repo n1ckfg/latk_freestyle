@@ -27,6 +27,7 @@ bl_info = {
 from bpy.props import (
         BoolProperty,
         EnumProperty,
+        FloatProperty,
         PointerProperty,
         )
 import parameter_editor
@@ -73,7 +74,11 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
             description="Remove the GPencil strokes from previous renders before a new render",
             default=True,
             )
-
+    vertexHitbox = FloatProperty(
+            name="Vertex Hitbox",
+            description="How close a GP stroke needs to be to a vertex",
+            default=0.2,
+            )
 
 class SVGExporterPanel(bpy.types.Panel):
     """Creates a Panel in the render context of the properties editor"""
@@ -102,6 +107,7 @@ class SVGExporterPanel(bpy.types.Panel):
         #row.prop(svg, "split_at_invisible")
         # row.prop(gp, "use_fill")
         row.prop(gp, "use_overwrite")
+        row.prop(gp, "vertexHitbox")
 
 
 
@@ -193,7 +199,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         lastPixel = getActiveColor().color
         for v in bm.verts:
             #if (compareTuple(obj.matrix_world * v.co, obj.matrix_world * v.co, numPlaces=1) == True):
-            if (hitDetect3D(obj.matrix_world * v.co, sampleVert, hitbox=0.2) == True):
+            if (hitDetect3D(obj.matrix_world * v.co, sampleVert, hitbox=bpy.context.scene.freestyle_gpencil_export.vertexHitbox) == True):
             #if (getDistance(obj.matrix_world * v.co, sampleVert) <= 0.5):
                 uv_first = uv_from_vert_first(uv_layer, v)
                 #uv_average = uv_from_vert_average(uv_layer, v)
