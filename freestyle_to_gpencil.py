@@ -85,6 +85,16 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
         description="How many decimal places used to find matching colors",
         default=5,
         )
+    numMaxColors = IntProperty(
+        name="Max Colors",
+        description="How many colors are in the Grease Pencil palette",
+        default=256,
+        )
+    doClearPalette = BoolProperty(
+            name="Clear Palette",
+            description="Delete palette before beginning a new render",
+            default=False,
+            )
 
 class SVGExporterPanel(bpy.types.Panel):
     """Creates a Panel in the render context of the properties editor"""
@@ -110,15 +120,15 @@ class SVGExporterPanel(bpy.types.Panel):
         row.prop(gp, "draw_mode", expand=True)
 
         row = layout.row()
+        row.prop(gp, "numColPlaces")
+        row.prop(gp, "numMaxColors")
+
+        row = layout.row()
         #row.prop(svg, "split_at_invisible")
         # row.prop(gp, "use_fill")
         row.prop(gp, "use_overwrite")
+        row.prop(gp, "doClearPalette")
         #row.prop(gp, "vertexHitbox")
-
-        #row = layout.row()
-        row.prop(gp, "numColPlaces")
-
-
 
 def render_visible_strokes():
     """Renders the scene, selects visible strokes and returns them as a tuple"""
@@ -168,6 +178,8 @@ def frame_from_frame_number(layer, current_frame):
     return next((frame for frame in layer.frames if frame.frame_number == current_frame), False)
 
 def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'):
+    if (bpy.context.scene.freestyle_gpencil_export.doClearPalette == True):
+        clearPalette()
     """Actually creates the GPencil structure from a collection of strokes"""
     mat = bpy.context.scene.camera.matrix_local.copy()
     # ~ ~ ~ ~ ~ ~ ~ 
@@ -237,7 +249,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
             pixel = lastPixel   
         # ~ ~ ~ ~ ~ ~ ~ 
         #try:
-        createColor(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces)
+        createColor(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces, bpy.context.scene.freestyle_gpencil_export.numMaxColors)
         #except:
             #pass
         gpstroke = frame.strokes.new(getActiveColor().name)
@@ -422,13 +434,18 @@ def getActiveLayer():
     layer = gp.layers.active
     return layer
 
+def clearPalette():
+    palette = getActivePalette()
+    for color in palette.colors:
+        palette.colors.remove(color)
+
 def createPoint(_stroke, _index, _point, pressure=1, strength=1):
     _stroke.points[_index].co = _point
     _stroke.points[_index].select = True
     _stroke.points[_index].pressure = pressure
     _stroke.points[_index].strength = strength
 
-def createColor(_color, numPlaces=7):
+def createColor(_color, numPlaces=7, maxColors=0):
     #frame = getActiveFrame()
     palette = getActivePalette()
     matchingColorIndex = -1
@@ -438,8 +455,18 @@ def createColor(_color, numPlaces=7):
             matchingColorIndex = i
     #~
     if (matchingColorIndex == -1):
-        color = palette.colors.new()
-        color.color = _color
+        if (maxColors<1 or len(palette.colors)<maxColors):
+            color = palette.colors.new()
+            color.color = _color
+        else:
+            distances = []
+            sortedColors = []
+            for color in palette.colors:
+                sortedColors.append(color)
+            for color in sortedColors:
+                distances.append(getDistance(_color, color.color))
+            sortedColors.sort(key=dict(zip(sortedColors, distances)).get)
+            palette.colors.active = palette.colors[sortedColors[0].name]
     else:
         palette.colors.active = palette.colors[matchingColorIndex]
         color = palette.colors[matchingColorIndex]
