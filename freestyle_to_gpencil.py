@@ -249,7 +249,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
             pixel = lastPixel   
         # ~ ~ ~ ~ ~ ~ ~ 
         #try:
-        createColor(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces, bpy.context.scene.freestyle_gpencil_export.numMaxColors)
+        createColorWithPalette(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces, bpy.context.scene.freestyle_gpencil_export.numMaxColors)
         #except:
             #pass
         gpstroke = frame.strokes.new(getActiveColor().name)
@@ -445,7 +445,7 @@ def createPoint(_stroke, _index, _point, pressure=1, strength=1):
     _stroke.points[_index].pressure = pressure
     _stroke.points[_index].strength = strength
 
-def createColor(_color, numPlaces=7, maxColors=0):
+def createColorWithPalette(_color, numPlaces=7, maxColors=0):
     #frame = getActiveFrame()
     palette = getActivePalette()
     matchingColorIndex = -1
