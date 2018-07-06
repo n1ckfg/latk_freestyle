@@ -53,54 +53,54 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
     bl_idname = "RENDER_PT_gpencil_export"
 
     use_freestyle_gpencil_export = BoolProperty(
-            name="Grease Pencil Export",
-            description="Export Freestyle edges to Grease Pencil",
-            )
+        name="Grease Pencil Export",
+        description="Export Freestyle edges to Grease Pencil",
+    )
     draw_mode = EnumProperty(
-            name="Draw Mode",
-            items=(
-                # ('2DSPACE', "2D Space", "Export a single frame", 0),
-                ('3DSPACE', "3D Space", "Export an animation", 1),
-                # ('2DIMAGE', "2D Image", "", 2),
-                ('SCREEN', "Screen", "", 3),
-                ),
-            default='3DSPACE',
-            )
+        name="Draw Mode",
+        items=(
+            # ('2DSPACE', "2D Space", "Export a single frame", 0),
+            ('3DSPACE', "3D Space", "Export an animation", 1),
+            # ('2DIMAGE', "2D Image", "", 2),
+            ('SCREEN', "Screen", "", 3),
+            ),
+        default='3DSPACE',
+    )
     use_fill = BoolProperty(
-            name="Fill Contours",
-            description="Fill the contour with the object's material color",
-            default=False,
-            )
+        name="Fill Contours",
+        description="Fill the contour with the object's material color",
+        default=False,
+    )
     use_connecting = BoolProperty(
-            name="Use Connecting Strokes",
-            description="Connect all vertices with strokes",
-            default=False,
-            )
+        name="Use Connecting Strokes",
+        description="Connect all vertices with strokes",
+        default=False,
+    )
     use_overwrite = BoolProperty(
-            name="Overwrite Result",
-            description="Remove the GPencil strokes from previous renders before a new render",
-            default=True,
-            )
+        name="Overwrite Result",
+        description="Remove the GPencil strokes from previous renders before a new render",
+        default=True,
+    )
     vertexHitbox = FloatProperty(
-            name="Vertex Hitbox",
-            description="How close a GP stroke needs to be to a vertex",
-            default=0.2,
-            )
+        name="Vertex Hitbox",
+        description="How close a GP stroke needs to be to a vertex",
+        default=0.2,
+    )
     numColPlaces = IntProperty(
         name="Color Places",
         description="How many decimal places used to find matching colors",
         default=5,
-        )
+    )
     numMaxColors = IntProperty(
         name="Max Colors",
         description="How many colors are in the Grease Pencil palette",
         default=256,
-        )
+    )
     doClearPalette = BoolProperty(
         name="Clear Palette",
         description="Delete palette before beginning a new render",
         default=False,
-        )
+    )
 
 class SVGExporterPanel(bpy.types.Panel):
     """Creates a Panel in the render context of the properties editor"""
@@ -187,12 +187,13 @@ def frame_from_frame_number(layer, current_frame):
     return next((frame for frame in layer.frames if frame.frame_number == current_frame), False)
 
 def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'):
-    if (bpy.context.scene.freestyle_gpencil_export.doClearPalette == True):
+    scene = bpy.context.scene
+    if (scene.freestyle_gpencil_export.doClearPalette == True):
         clearPalette()
     """Actually creates the GPencil structure from a collection of strokes"""
-    mat = bpy.context.scene.camera.matrix_local.copy()
+    mat = scene.camera.matrix_local.copy()
     # ~ ~ ~ ~ ~ ~ ~ 
-    obj = bpy.context.scene.objects.active #bpy.context.edit_object
+    obj = scene.objects.active #bpy.context.edit_object
     me = obj.data
     bm = bmesh.new()
     bm.from_mesh(me) #from_edit_mesh(me)
@@ -203,6 +204,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     uv_layer = bm.loops.layers.uv.active
     #~
     # ~ ~ ~ ~ ~ ~ ~ 
+    strokeCounter = 0;
     for fstroke in strokes:
         # *** fstroke contains coordinates of original vertices ***
         # ~ ~ ~ ~ ~ ~ ~
@@ -236,15 +238,15 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
             distances.append(getDistance(obj.matrix_world * v.co, sampleVert))
         sortedVerts.sort(key=dict(zip(sortedVerts, distances)).get)
         #~ ~ ~ ~ ~ ~ ~ ~ ~ 
-        #if (use_connecting==True):
-        gpstroke = frame.strokes.new(getActiveColor().name)
-        gpstroke.draw_mode = draw_mode
-        gpstroke.points.add(count=len(sortedVerts))
-        for vert, point in zip(sortedVerts, gpstroke.points):
-            point.co = obj.matrix_world * vert.co
-            point.select = True
-            point.strength = 1
-            point.pressure = pressure            
+        if (scene.freestyle_gpencil_export.use_connecting == True):
+            gpstroke = frame.strokes.new(getActiveColor().name)
+            gpstroke.draw_mode = draw_mode
+            gpstroke.points.add(count=len(sortedVerts))
+            for vert, point in zip(sortedVerts, gpstroke.points):
+                point.co = obj.matrix_world * vert.co
+                point.select = True
+                point.strength = 1
+                point.pressure = pressure            
         #~ ~ ~ ~ ~ ~ ~ ~ ~
         targetVert = None
         for v in sortedVerts:
