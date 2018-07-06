@@ -76,6 +76,11 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
         description="Connect all vertices with strokes",
         default=False,
     )
+    use_orig = BoolProperty(
+        name="Use Original Verts",
+        description="Connect original vertices with strokes",
+        default=True,
+    )
     use_overwrite = BoolProperty(
         name="Overwrite Result",
         description="Remove the GPencil strokes from previous renders before a new render",
@@ -84,7 +89,7 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
     vertexHitbox = FloatProperty(
         name="Vertex Hitbox",
         description="How close a GP stroke needs to be to a vertex",
-        default=0.2,
+        default=2.0,
     )
     numColPlaces = IntProperty(
         name="Color Places",
@@ -128,16 +133,17 @@ class SVGExporterPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(gp, "numColPlaces")
         row.prop(gp, "numMaxColors")
+        row.prop(gp, "vertexHitbox")
 
         row = layout.row()
         #row.prop(svg, "split_at_invisible")
         row.prop(gp, "use_fill")
         row.prop(gp, "use_overwrite")
+        row.prop(gp, "doClearPalette")
 
         row = layout.row()
-        row.prop(gp, "doClearPalette")
+        row.prop(gp, "use_orig")
         row.prop(gp, "use_connecting")
-        #row.prop(gp, "vertexHitbox")
 
 def render_visible_strokes():
     """Renders the scene, selects visible strokes and returns them as a tuple"""
@@ -192,7 +198,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         clearPalette()
     """Actually creates the GPencil structure from a collection of strokes"""
     mat = scene.camera.matrix_local.copy()
-    # ~ ~ ~ ~ ~ ~ ~ 
+    #~ 
     obj = scene.objects.active #bpy.context.edit_object
     me = obj.data
     bm = bmesh.new()
@@ -203,11 +209,18 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
     #~
     uv_layer = bm.loops.layers.uv.active
     #~
-    # ~ ~ ~ ~ ~ ~ ~ 
+    #~ 
     strokeCounter = 0;
+    
+    firstRun = True
+    allPoints = []
+    strokesToRemove = []
+    allPointsCounter = 1
+    lastActiveColor = None
+
     for fstroke in strokes:
         # *** fstroke contains coordinates of original vertices ***
-        # ~ ~ ~ ~ ~ ~ ~
+        #~
         sampleVertRaw = (0,0,0)
         sampleVert = (0,0,0)
         #~
@@ -239,26 +252,30 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         sortedVerts.sort(key=dict(zip(sortedVerts, distances)).get)
         #~ ~ ~ ~ ~ ~ ~ ~ ~ 
         if (scene.freestyle_gpencil_export.use_connecting == True):
-            allPoints = []
-            for svert in sortedVerts:
-                allPoints.append(svert)
-            points = []
-            '''
-            for i in range(1, len(allPoints)):
-                if (getDistance(allPoints[i].co, allPoints[i-1].co) < 2):
-                    points.append(allPoints[i-1])
-                    allPoints.pop(i-1)
-            '''
-            '''
-            gpstroke = frame.strokes.new(getActiveColor().name)
-            gpstroke.draw_mode = draw_mode
-            gpstroke.points.add(count=len(points))  
-            for i in range(0, len(points)):
-                gpstroke.points[i].co = obj.matrix_world * points[i].co
-                gpstroke.points[i].select = True
-                gpstroke.points[i].strength = 1
-                gpstroke.points[i].pressure = pressure
-            '''
+            if (firstRun == True):
+                for svert in sortedVerts:
+                    allPoints.append(svert)
+                firstRun = False
+
+            if (lastActiveColor != None):
+                points = []
+                for i in range(allPointsCounter, len(allPoints)):
+                    if (getDistance(allPoints[i].co, allPoints[i-1].co) < scene.freestyle_gpencil_export.vertexHitbox):
+                        points.append(allPoints[i-1])
+                    else:
+                        allPointsCounter = i
+                        break
+                if (scene.freestyle_gpencil_export.use_fill):
+                    lastActiveColor.fill_color = lastActiveColor.color
+                    lastActiveColor.fill_alpha = 0.9
+                gpstroke = frame.strokes.new(lastActiveColor.name)
+                gpstroke.draw_mode = draw_mode
+                gpstroke.points.add(count=len(points))  
+                for i in range(0, len(points)):
+                    gpstroke.points[i].co = obj.matrix_world * points[i].co
+                    gpstroke.points[i].select = True
+                    gpstroke.points[i].strength = 1
+                    gpstroke.points[i].pressure = pressure
         #~ ~ ~ ~ ~ ~ ~ ~ ~
         targetVert = None
         for v in sortedVerts:
@@ -281,12 +298,16 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
             #print("Pixel: " + str(pixel))    
         except:
             pixel = lastPixel   
-        # ~ ~ ~ ~ ~ ~ ~ 
+        #~ 
         #try:
         createColorWithPalette(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces, bpy.context.scene.freestyle_gpencil_export.numMaxColors)
         #except:
             #pass
-        gpstroke = frame.strokes.new(getActiveColor().name)
+        lastActiveColor = getActiveColor()
+        if (scene.freestyle_gpencil_export.use_fill):
+            lastActiveColor.fill_color = lastActiveColor.color
+            lastActiveColor.fill_alpha = 0.9
+        gpstroke = frame.strokes.new(lastActiveColor.name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
         gpstroke.draw_mode = draw_mode
         gpstroke.points.add(count=len(fstroke))
@@ -309,8 +330,8 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         else:
             raise NotImplementedError()
 
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#~ ~ ~ ~ ~ ~ ~ ~
+#~ ~ ~ ~ ~ ~ ~ ~
 
 # http://blender.stackexchange.com/questions/49341/how-to-get-the-uv-corresponding-to-a-vertex-via-the-python-api
 # https://blenderartists.org/forum/archive/index.php/t-195230.html
@@ -432,8 +453,8 @@ def hitDetect3D(p1, p2, hitbox=0.01):
 def getDistance(v1, v2):
     return sqrt((v1[0] - v2[0])**2 + (v1[1] - v2[1])**2 + (v1[2] - v2[2])**2)
 
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#~ ~ ~ ~ ~ ~ ~ ~
+#~ ~ ~ ~ ~ ~ ~ ~
 
 def getActiveGp(_name="GPencil"):
     try:
@@ -523,8 +544,8 @@ def roundValInt(a):
     formatter = "{0:." + str(0) + "f}"
     return int(formatter.format(a))
 
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#~ ~ ~ ~ ~ ~ ~ ~
+#~ ~ ~ ~ ~ ~ ~ ~
 
 def freestyle_to_fill(scene):
     default = dict(color=(0, 0, 0), alpha=1, fill_color=(0, 1, 0), fill_alpha=1)
