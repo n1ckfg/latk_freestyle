@@ -239,14 +239,26 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         sortedVerts.sort(key=dict(zip(sortedVerts, distances)).get)
         #~ ~ ~ ~ ~ ~ ~ ~ ~ 
         if (scene.freestyle_gpencil_export.use_connecting == True):
+            allPoints = []
+            for svert in sortedVerts:
+                allPoints.append(svert)
+            points = []
+            '''
+            for i in range(1, len(allPoints)):
+                if (getDistance(allPoints[i].co, allPoints[i-1].co) < 2):
+                    points.append(allPoints[i-1])
+                    allPoints.pop(i-1)
+            '''
+            '''
             gpstroke = frame.strokes.new(getActiveColor().name)
             gpstroke.draw_mode = draw_mode
-            gpstroke.points.add(count=len(sortedVerts))
-            for vert, point in zip(sortedVerts, gpstroke.points):
-                point.co = obj.matrix_world * vert.co
-                point.select = True
-                point.strength = 1
-                point.pressure = pressure            
+            gpstroke.points.add(count=len(points))  
+            for i in range(0, len(points)):
+                gpstroke.points[i].co = obj.matrix_world * points[i].co
+                gpstroke.points[i].select = True
+                gpstroke.points[i].strength = 1
+                gpstroke.points[i].pressure = pressure
+            '''
         #~ ~ ~ ~ ~ ~ ~ ~ ~
         targetVert = None
         for v in sortedVerts:
