@@ -14,7 +14,7 @@ from mathutils import Vector, Matrix
 
 bl_info = {
     "name": "Freestyle to Grease Pencil",
-    "author": "Folkert de Vries",
+    "author": "Folkert de Vries and Nick Fox-Gieg",
     "version": (1, 0),
     "blender": (2, 74, 1),
     "location": "Properties > Render > Freestyle to Grease Pencil",
@@ -34,10 +34,10 @@ from bpy.props import (
 import parameter_editor
 
 
+# a tuple containing all strokes from the current render. should get replaced by freestyle.context at some point
 def get_strokes():
-    # a tuple containing all strokes from the current render. should get replaced by freestyle.context at some point
-
     return tuple(map(Operators().get_stroke_from_index, range(Operators().get_strokes_size())))
+
 # get the exact scene dimensions
 def render_height(scene):
     return int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
@@ -56,6 +56,7 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
         name="Grease Pencil Export",
         description="Export Freestyle edges to Grease Pencil",
     )
+    '''
     draw_mode = EnumProperty(
         name="Draw Mode",
         items=(
@@ -66,30 +67,33 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
             ),
         default='3DSPACE',
     )
+    '''
     use_fill = BoolProperty(
-        name="Fill Contours",
+        name="Fill",
         description="Fill the contour with the object's material color",
         default=False,
     )
     use_connecting = BoolProperty(
-        name="Use Connecting Strokes",
+        name="Connecting Strokes",
         description="Connect all vertices with strokes",
         default=False,
     )
+    '''
     use_orig = BoolProperty(
         name="Use Original Verts",
         description="Connect original vertices with strokes",
         default=True,
     )
+    '''
     use_overwrite = BoolProperty(
-        name="Overwrite Result",
+        name="Overwrite",
         description="Remove the GPencil strokes from previous renders before a new render",
         default=True,
     )
     vertexHitbox = FloatProperty(
         name="Vertex Hitbox",
         description="How close a GP stroke needs to be to a vertex",
-        default=2.0,
+        default=1.5,
     )
     numColPlaces = IntProperty(
         name="Color Places",
@@ -99,7 +103,7 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
     numMaxColors = IntProperty(
         name="Max Colors",
         description="How many colors are in the Grease Pencil palette",
-        default=256,
+        default=16,
     )
     doClearPalette = BoolProperty(
         name="Clear Palette",
@@ -127,13 +131,12 @@ class SVGExporterPanel(bpy.types.Panel):
 
         layout.active = (gp.use_freestyle_gpencil_export and freestyle.mode != 'SCRIPT')
 
-        row = layout.row()
-        row.prop(gp, "draw_mode", expand=True)
+        #row = layout.row()
+        #row.prop(gp, "draw_mode", expand=True)
 
         row = layout.row()
         row.prop(gp, "numColPlaces")
         row.prop(gp, "numMaxColors")
-        row.prop(gp, "vertexHitbox")
 
         row = layout.row()
         #row.prop(svg, "split_at_invisible")
@@ -142,8 +145,9 @@ class SVGExporterPanel(bpy.types.Panel):
         row.prop(gp, "doClearPalette")
 
         row = layout.row()
-        row.prop(gp, "use_orig")
+        #row.prop(gp, "use_orig")
         row.prop(gp, "use_connecting")
+        row.prop(gp, "vertexHitbox")
 
 def render_visible_strokes():
     """Renders the scene, selects visible strokes and returns them as a tuple"""
@@ -192,7 +196,7 @@ def frame_from_frame_number(layer, current_frame):
     """Get a reference to the current frame if it exists, else False"""
     return next((frame for frame in layer.frames if frame.frame_number == current_frame), False)
 
-def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'):
+def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode="3DSPACE"):
     scene = bpy.context.scene
     if (scene.freestyle_gpencil_export.doClearPalette == True):
         clearPalette()
@@ -269,7 +273,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
                     lastActiveColor.fill_color = lastActiveColor.color
                     lastActiveColor.fill_alpha = 0.9
                 gpstroke = frame.strokes.new(lastActiveColor.name)
-                gpstroke.draw_mode = draw_mode
+                gpstroke.draw_mode = "3DSPACE"
                 gpstroke.points.add(count=len(points))  
                 for i in range(0, len(points)):
                     gpstroke.points[i].co = obj.matrix_world * points[i].co
@@ -309,16 +313,17 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
             lastActiveColor.fill_alpha = 0.9
         gpstroke = frame.strokes.new(lastActiveColor.name)
         # enum in ('SCREEN', '3DSPACE', '2DSPACE', '2DIMAGE')
-        gpstroke.draw_mode = draw_mode
+        gpstroke.draw_mode = "3DSPACE"
         gpstroke.points.add(count=len(fstroke))
 
-        if draw_mode == '3DSPACE':
-            for svert, point in zip(fstroke, gpstroke.points):
-                # svert.attribute.color = (1, 0, 0) # confirms that this callback runs earlier than the shading
-                point.co = mat * svert.point_3d
-                point.select = True
-                point.strength = 1
-                point.pressure = pressure
+        #if draw_mode == '3DSPACE':
+        for svert, point in zip(fstroke, gpstroke.points):
+            # svert.attribute.color = (1, 0, 0) # confirms that this callback runs earlier than the shading
+            point.co = mat * svert.point_3d
+            point.select = True
+            point.strength = 1
+            point.pressure = pressure
+        '''
         elif draw_mode == 'SCREEN':
             width, height = render_dimensions(bpy.context.scene)
             for svert, point in zip(fstroke, gpstroke.points):
@@ -329,6 +334,7 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
                 point.pressure = 1
         else:
             raise NotImplementedError()
+        '''
 
 #~ ~ ~ ~ ~ ~ ~ ~
 #~ ~ ~ ~ ~ ~ ~ ~
@@ -552,7 +558,7 @@ def freestyle_to_fill(scene):
     layer, frame = create_gpencil_layer(scene, "freestyle fill", **default)
     # render the external contour 
     strokes = render_external_contour()
-    freestyle_to_gpencil_strokes(strokes, frame, draw_mode=scene.freestyle_gpencil_export.draw_mode)
+    freestyle_to_gpencil_strokes(strokes, frame, draw_mode="3DSPACE")#scene.freestyle_gpencil_export.draw_mode)
 
 def freestyle_to_strokes(scene):
     default = dict(color=(0, 0, 0), alpha=1, fill_color=(0, 1, 0), fill_alpha=0)
@@ -560,7 +566,7 @@ def freestyle_to_strokes(scene):
     # render the normal strokes 
     #strokes = render_visible_strokes()
     strokes = get_strokes()
-    freestyle_to_gpencil_strokes(strokes, frame, draw_mode=scene.freestyle_gpencil_export.draw_mode)
+    freestyle_to_gpencil_strokes(strokes, frame, draw_mode="3DSPACE")#scene.freestyle_gpencil_export.draw_mode)
 
 
 classes = (
