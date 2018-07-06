@@ -69,6 +69,12 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
     use_fill = BoolProperty(
             name="Fill Contours",
             description="Fill the contour with the object's material color",
+            default=False,
+            )
+    use_connecting = BoolProperty(
+            name="Use Connecting Strokes",
+            description="Connect all vertices with strokes",
+            default=False,
             )
     use_overwrite = BoolProperty(
             name="Overwrite Result",
@@ -91,10 +97,10 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
         default=256,
         )
     doClearPalette = BoolProperty(
-            name="Clear Palette",
-            description="Delete palette before beginning a new render",
-            default=False,
-            )
+        name="Clear Palette",
+        description="Delete palette before beginning a new render",
+        default=False,
+        )
 
 class SVGExporterPanel(bpy.types.Panel):
     """Creates a Panel in the render context of the properties editor"""
@@ -125,9 +131,12 @@ class SVGExporterPanel(bpy.types.Panel):
 
         row = layout.row()
         #row.prop(svg, "split_at_invisible")
-        # row.prop(gp, "use_fill")
+        row.prop(gp, "use_fill")
         row.prop(gp, "use_overwrite")
+
+        row = layout.row()
         row.prop(gp, "doClearPalette")
+        row.prop(gp, "use_connecting")
         #row.prop(gp, "vertexHitbox")
 
 def render_visible_strokes():
@@ -226,6 +235,17 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode='3DSPACE'
         for v in bm.verts:
             distances.append(getDistance(obj.matrix_world * v.co, sampleVert))
         sortedVerts.sort(key=dict(zip(sortedVerts, distances)).get)
+        #~ ~ ~ ~ ~ ~ ~ ~ ~ 
+        #if (use_connecting==True):
+        gpstroke = frame.strokes.new(getActiveColor().name)
+        gpstroke.draw_mode = draw_mode
+        gpstroke.points.add(count=len(sortedVerts))
+        for vert, point in zip(sortedVerts, gpstroke.points):
+            point.co = obj.matrix_world * vert.co
+            point.select = True
+            point.strength = 1
+            point.pressure = pressure            
+        #~ ~ ~ ~ ~ ~ ~ ~ ~
         targetVert = None
         for v in sortedVerts:
             targetVert = v
@@ -389,7 +409,8 @@ def getPixelFromUvArray(img, u, v):
     return getPixelFromImageArray(img, pixel_x, pixel_y)
 
 def hitDetect3D(p1, p2, hitbox=0.01):
-    if (p1[0] + hitbox >= p2[0] - hitbox and p1[0] - hitbox <= p2[0] + hitbox and p1[1] + hitbox >= p2[1] - hitbox and p1[1] - hitbox <= p2[1] + hitbox and p1[2] + hitbox >= p2[2] - hitbox and p1[2] - hitbox <= p2[2] + hitbox):
+    #if (p1[0] + hitbox >= p2[0] - hitbox and p1[0] - hitbox <= p2[0] + hitbox and p1[1] + hitbox >= p2[1] - hitbox and p1[1] - hitbox <= p2[1] + hitbox and p1[2] + hitbox >= p2[2] - hitbox and p1[2] - hitbox <= p2[2] + hitbox):
+    if (getDistance(p1, p2) <= hitbox):
         return True
     else:
         return False
