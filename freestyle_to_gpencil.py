@@ -78,13 +78,11 @@ class FreestyleGPencil(bpy.types.PropertyGroup):
         description="Connect all vertices with strokes",
         default=False,
     )
-    '''
-    use_orig = BoolProperty(
-        name="Use Original Verts",
-        description="Connect original vertices with strokes",
+    visible_only = BoolProperty(
+        name="Visible Only",
+        description="Only render visible lines",
         default=True,
     )
-    '''
     use_overwrite = BoolProperty(
         name="Overwrite",
         description="Remove the GPencil strokes from previous renders before a new render",
@@ -145,14 +143,16 @@ class SVGExporterPanel(bpy.types.Panel):
         row.prop(gp, "doClearPalette")
 
         row = layout.row()
-        #row.prop(gp, "use_orig")
+        row.prop(gp, "visible_only")
         row.prop(gp, "use_connecting")
         row.prop(gp, "vertexHitbox")
 
 def render_visible_strokes():
     """Renders the scene, selects visible strokes and returns them as a tuple"""
-    upred = QuantitativeInvisibilityUP1D(0) # visible lines only
-    #upred = TrueUP1D() # all lines
+    if (bpy.context.scene.freestyle_gpencil_export.visible_only == True):
+        upred = QuantitativeInvisibilityUP1D(0) # visible lines only
+    else:
+        upred = TrueUP1D() # all lines
     Operators.select(upred)
     Operators.bidirectional_chain(ChainSilhouetteIterator(), NotUP1D(upred))
     Operators.create(TrueUP1D(), [])
@@ -303,10 +303,11 @@ def freestyle_to_gpencil_strokes(strokes, frame, pressure=1, draw_mode="3DSPACE"
         except:
             pixel = lastPixel   
         #~ 
-        #try:
-        createColorWithPalette(pixel, bpy.context.scene.freestyle_gpencil_export.numColPlaces, bpy.context.scene.freestyle_gpencil_export.numMaxColors)
-        #except:
-            #pass
+        palette = getActivePalette()
+        if (len(palette.colors) < scene.freestyle_gpencil_export.numMaxColors):
+            createColorWithPalette(pixel, scene.freestyle_gpencil_export.numColPlaces, scene.freestyle_gpencil_export.numMaxColors)
+        else:
+            matchColorToPalette(pixel)
         lastActiveColor = getActiveColor()
         if (scene.freestyle_gpencil_export.use_fill):
             lastActiveColor.fill_color = lastActiveColor.color
@@ -506,6 +507,19 @@ def createPoint(_stroke, _index, _point, pressure=1, strength=1):
     _stroke.points[_index].select = True
     _stroke.points[_index].pressure = pressure
     _stroke.points[_index].strength = strength
+
+def matchColorToPalette(_color):
+    palette = getActivePalette()
+    distances = []
+    sortedColors = []
+    for color in palette.colors:
+        sortedColors.append(color)
+    for color in sortedColors:
+        distances.append(getDistance(_color, color.color))
+    sortedColors.sort(key=dict(zip(sortedColors, distances)).get)
+    returns = palette.colors[sortedColors[0].name]
+    palette.colors.active = returns
+    return returns
 
 def createColorWithPalette(_color, numPlaces=7, maxColors=0):
     #frame = getActiveFrame()
