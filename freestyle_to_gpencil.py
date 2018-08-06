@@ -396,7 +396,7 @@ def unregister():
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.freestyle_gpencil_export
 
-    parameter_editor.callbacks_lineset_pre.append(export_fill)
+    parameter_editor.callbacks_lineset_pre.remove(export_fill)
     parameter_editor.callbacks_lineset_post.remove(export_stroke)
 
 
