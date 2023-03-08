@@ -12,7 +12,7 @@ from math import sqrt
 import random
 from mathutils import Vector, Matrix
 
-from latk import *
+from latk_blender import *
 
 bl_info = {
     "name": "Freestyle to Grease Pencil",
